@@ -1,7 +1,7 @@
 CREATE DATABASE [Airport] 
 
 USE [Airport]
-
+--ex 1
 CREATE TABLE Planes(
 	Id INT IDENTITY PRIMARY KEY,
 	[Name] VARCHAR(30) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE Tickets(
 	LuggageId INT FOREIGN KEY REFERENCES Luggages(Id) NOT NULL,
 	Price DECIMAL(18,2) NOT NULL
 )
-
+--ex 2
 INSERT INTO Planes([Name],Seats,[Range])
 VALUES
 	('Airbus 336',112,5132),
@@ -61,7 +61,7 @@ VALUES
 	('Crossbody Bag'),
 	('School Backpack'),
 	('Shoulder Bag')
-
+--ex 3
 UPDATE Tickets 
 	SET Price += Price * 0.13
 	WHERE FlightId IN
@@ -69,7 +69,7 @@ UPDATE Tickets
 		SELECT Id FROM Flights
 		WHERE Destination='Carlsbad'
 		)
-
+--ex 4
 DELETE FROM Tickets
 	WHERE FlightId IN(
 		SELECT Id FROM Flights
@@ -78,30 +78,30 @@ DELETE FROM Tickets
 DELETE FROM Flights
 	WHERE Destination='Ayn Halagim'
 
-
+--ex 5
 SELECT * FROM Planes
 	WHERE [Name] LIKE '%tr%'
 	ORDER BY Id,Seats,[Range]
-
+--ex 6
 SELECT t.FlightId,SUM(t.Price) AS [Price] FROM Flights AS f
 	LEFT JOIN Tickets AS t
 	ON t.FlightId=f.Id
 	GROUP BY t.FlightId
 	ORDER BY Price DESC,FlightId
-
+--ex 7
 SELECT (FirstName + ' ' + LastName) AS [Full Name],f.Origin,f.Destination FROM Passengers AS p
 	JOIN Tickets AS t
 	ON t.PassengerId=p.Id
 	JOIN Flights AS f
 	ON f.Id=t.FlightId
 		ORDER BY [Full Name],Origin,Destination
-
+--ex 8
 SELECT p.FirstName, p.LastName,p.Age FROM Passengers AS p
 	LEFT JOIN Tickets AS t 
 	ON p.Id=t.PassengerId
 	WHERE FlightId IS NULL
 	ORDER BY Age DESC, FirstName, LastName
-
+--ex 9 
 SELECT (FirstName + ' ' + LastName) AS [Full Name],
 	pl.[Name],
 	(Origin + ' - ' + Destination),
@@ -119,7 +119,7 @@ SELECT (FirstName + ' ' + LastName) AS [Full Name],
 			ON lt.Id=l.LuggageTypeId
 				WHERE FlightId IS NOT NULL
 				ORDER BY [Full Name],pl.[Name],Origin,Destination,lt.[Type]
-
+--ex 10
 SELECT p.[Name],Seats,COUNT(pa.Id) AS [Passengers Count] FROM Planes AS p
 	LEFT JOIN Flights AS f
 	ON f.PlaneId=p.Id
@@ -129,7 +129,7 @@ SELECT p.[Name],Seats,COUNT(pa.Id) AS [Passengers Count] FROM Planes AS p
 	ON pa.Id=t.PassengerId
 	GROUP BY p.[Name],Seats
 	ORDER BY [Passengers Count] DESC,p.[Name],Seats
-
+--ex 11
 CREATE FUNCTION udf_CalculateTickets(@origin VARCHAR(50), @destination VARCHAR(50), @peopleCount INT) 
 RETURNS VARCHAR(50)
 AS
@@ -157,10 +157,10 @@ BEGIN
 	END
 	RETURN CONCAT('Total price ',@totalPrice);
 END
---GO
+GO
 
 SELECT dbo.udf_CalculateTickets('Kolyshley','Rancabolang', 33)
-
+--ex 12
 CREATE PROCEDURE usp_CancelFlights 
 AS
 BEGIN
