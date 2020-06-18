@@ -1,0 +1,146 @@
+USE [Bank]
+--ex 14
+CREATE TABLE Logs(
+	LogId INT PRIMARY KEY IDENTITY,
+	AccountId INT FOREIGN KEY REFERENCES Accounts(Id),
+	OldSum DECIMAL(15,2),
+	NewSum DECIMAL(15,2)
+)
+
+CREATE TRIGGER InsertAccountInfo ON Accounts FOR UPDATE
+AS
+	DECLARE @newSum DECIMAL(15,2) = (SELECT Balance FROM inserted);
+	DECLARE @oldSum DECIMAL(15,2) = (SELECT Balance FROM deleted);
+	DECLARE @accountId INT = (SELECT Id FROM inserted);
+	INSERT INTO Logs(AccountId,NewSum,OldSum)
+	VALUES
+		(@accountId,@newSum,@oldSum)
+--ex 15
+CREATE TABLE NotificationEmails(
+	Id INT PRIMARY KEY IDENTITY,
+	Recipient INT FOREIGN KEY REFERENCES Accounts(Id),
+	[Subject] VARCHAR(50),
+	Body VARCHAR(MAX)
+)
+
+
+CREATE TRIGGER tr_LogEmail ON Logs FOR INSERT
+AS
+	DECLARE @accountId INT = (SELECT TOP(1) AccountId FROM inserted)
+	DECLARE @newSum DECIMAL(15,2) = (SELECT TOP(1) NewSum FROM inserted);
+	DECLARE @oldSum DECIMAL(15,2) = (SELECT TOP(1) OldSum FROM inserted); 
+
+	INSERT INTO NotificationEmails(Recipient,[Subject],Body) 
+	VALUES
+		(
+		@accountId,
+		'Balance change for account: '+ CAST(@accountId AS VARCHAR(20)),
+		'On '+ CONVERT(VARCHAR(30),GETDATE(),103) + 
+		'your balance was changed from '+ CAST(@oldSum AS VARCHAR(20)) + 
+		'to' + CAST(@newSum AS VARCHAR(20))
+		)
+
+--ex 16
+CREATE PROCEDURE usp_DepositMoney @accountId INT, @moneyAmount DECIMAL(15,4)
+AS
+BEGIN TRANSACTION
+
+	DECLARE @account INT = (SELECT Id FROM Accounts WHERE Id = @accountId);
+	IF (@account IS NULL)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('Invalid account id!',16,1);
+		RETURN;
+	END
+	IF (@moneyAmount<0)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('Negative amount!',16,1);
+		RETURN;
+	END
+
+	UPDATE Accounts
+	SET Balance += @moneyAmount
+	WHERE Id=@accountId
+COMMIT
+
+--ex 17
+CREATE PROCEDURE usp_WithdrawMoney @accountId INT, @moneyAmount DECIMAL(15,4)
+AS
+BEGIN TRANSACTION
+
+	DECLARE @account INT = (SELECT Id FROM Accounts WHERE Id = @accountId);
+	IF (@account IS NULL)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('Invalid account id!',16,1);
+		RETURN;
+	END
+	IF (@moneyAmount<0)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('Negative amount!',16,1);
+		RETURN;
+	END
+
+	UPDATE Accounts
+	SET Balance -= @moneyAmount
+	WHERE Id=@accountId
+COMMIT
+
+--ex 18
+CREATE PROCEDURE usp_TransferMoney (@senderId INT, @receiverId INT, @amount DECIMAL(15,4))
+AS
+BEGIN TRANSACTION
+
+	EXEC usp_WithdrawMoney @senderId,@amount
+	EXEC usp_DepositMoney @receiverId,@amount
+
+COMMIT
+--ex 21
+USE [SoftUni]
+
+CREATE OR ALTER PROCEDURE usp_AssignProject(@employeeId INT, @projectId INT)
+AS
+BEGIN TRANSACTION
+
+	DECLARE @employee INT = (SELECT EmployeeId FROM Employees WHERE EmployeeID = @employeeId);
+	DECLARE @project INT = (SELECT ProjectID FROM Projects WHERE ProjectID = @projectId)
+
+	IF (@employee IS NULL OR @project IS NULL)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('Invalid employee id or project id!',16,1);
+		RETURN;
+	END
+
+	DECLARE @employeeProjects INT = (SELECT COUNT(*) FROM EmployeesProjects WHERE EmployeeID = @employeeId);
+
+	IF (@employeeProjects>=3)
+	BEGIN
+		ROLLBACK;
+		RAISERROR('The employee has too many projects!',16,2);
+		RETURN;
+	END
+
+	INSERT INTO EmployeesProjects (EmployeeID, ProjectID)
+	VALUES
+		(@employeeId,@projectId)
+
+COMMIT
+--ex 22
+CREATE TABLE Deleted_Employees(
+EmployeeId INT PRIMARY KEY IDENTITY NOT NULL,
+FirstName NVARCHAR(30) NOT NULL,
+LastName NVARCHAR(30) NOT NULL,
+MiddleName NVARCHAR(30),
+JobTitle NVARCHAR(30) NOT NULL,
+DepartmentID INT FOREIGN KEY REFERENCES Departments(DepartmentID) NOT NULL,
+Salary DECIMAL(15,2)NOT NULL,
+)
+
+CREATE TRIGGER tr_FiredEmployees ON Employees FOR DELETE
+AS
+	INSERT INTO Deleted_Employees(FirstName,LastName,MiddleName,JobTitle,DepartmentID,Salary)
+	(SELECT	FirstName, LastName, MiddleName,
+	JobTitle, DepartmentID, Salary FROM deleted )
